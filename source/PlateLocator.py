@@ -8,7 +8,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ToolKit import *
+from source.ToolKit import *
 
 
 def locate_plate(raw_image):
@@ -35,7 +35,8 @@ def gauss_process(raw_image):
     :param raw_image: 原始图片
     :return: 返回高斯去噪后的结果
     """
-    return cv.GaussianBlur(raw_image, (5, 5), cv.BORDER_DEFAULT)
+    gauss_image = cv.GaussianBlur(raw_image, (3, 3), 0)
+    return gauss_image
 
 
 def grayscale_process(raw_image):
@@ -44,7 +45,8 @@ def grayscale_process(raw_image):
     :param raw_image:
     :return:
     """
-    return cv.cvtColor(raw_image, cv.COLOR_BGR2GRAY)
+    grayscale_outcome_image = cv.cvtColor(raw_image, cv.COLOR_BGR2GRAY)
+    return grayscale_outcome_image
 
 
 def edge_detect(raw_image):
@@ -64,8 +66,8 @@ def adaptive_threshold(raw_image):
     :param raw_image:
     :return:
     """
-    adaptive_image = cv.threshold(raw_image, 0, 255, cv.THRESH_OTSU)
-    return adaptive_image
+    ret, adaptive_image = cv.threshold(raw_image, 0, 255, cv.THRESH_OTSU)
+    return ret, adaptive_image
 
 
 def closed_operation(raw_image):
@@ -102,4 +104,58 @@ def median_filter(raw_image):
     median_image = cv.medianBlur(raw_image, 15)
     return median_image
 
-# TODO: 接下来是轮廓检测函数
+
+def detect_contours(img_for_contours, origin_image):
+    """
+    轮廓检测
+    该函数会通过img_for_contours检测出所有轮廓，然后在origin_image中标出轮廓
+    :param img_for_contours: 应传入中值滤波后的图片
+    :param origin_image: 原图片，这个图片用于被标记轮廓，建议使用被处理的图片。
+    :return:
+    """
+    # 轮廓检测
+    contours, hierarchy = cv.findContours(img_for_contours, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    # 绘制轮廓
+    image_copy = origin_image.copy()
+    cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
+    return contours, image_copy  # 返回被标记轮廓的图片复制品
+
+
+def detect_contours_copy(img_for_contours, origin_image):
+    """
+    轮廓检测
+    该函数会通过img_for_contours检测出所有轮廓，然后在origin_image中标出轮廓
+    :param img_for_contours: 应传入中值滤波后的图片
+    :param origin_image: 原图片，这个图片用于被标记轮廓，建议使用被处理的图片。
+    :return:
+    """
+    # 轮廓检测
+    contours, hierarchy = cv.findContours(img_for_contours, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    # 绘制轮廓
+    image_copy = origin_image.copy()
+    cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
+    return contours  # 返回被标记轮廓的图片复制品
+
+
+def find_plate_contour(contours, original_image):
+    """
+    该图片用于筛选车牌位置的轮廓，并且将其绘制到原图中，最后返回被绘制车牌轮廓的部分
+    :param contours: 包含轮廓信息的列表
+    :param original_image: 被绘制轮廓的列表
+    :return: 返回被绘制轮廓后的图片
+    """
+    image_copy = None  # 准备保存返回值。
+    # 筛选车牌位置轮廓
+    for index, item in enumerate(contours):
+        rect = cv.boundingRect(item)
+        x = rect[0]
+        y = rect[1]
+        width = rect[2]
+        height = rect[3]
+        if (width > height * 2.5) and (width < height * 4):
+            # print(index)
+            image_copy = original_image.copy()
+            cv.drawContours(image_copy, contours, 1, (0, 255, 0), 2)
+    return image_copy  # 返回被绘制轮廓的图片
+
+# TODO: 拟合直线找斜率函数。
