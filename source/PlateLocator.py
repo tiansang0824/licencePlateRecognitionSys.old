@@ -21,66 +21,73 @@ def locate_plate(raw_image):
     pass
 
 
-def pre_process(raw_image):
-    """
+def pre_process(original_image):
+    """ 预处理
     本函数用于对原始图片进行预处理，包括平滑、去噪、二值化、边缘检测、自适应阈值处理
-    :param raw_image: 待处理的原始图片
+    预处理步骤包括：
+    # TODO: 整合预处理函数
+    :param original_image: 待处理的原始图片
     :return: 返回处理后的图片
     """
     pass
 
 
-def gauss_process(raw_image):
-    """
+def gauss_process(original_image):
+    """ 高斯去噪处理
     本函数用于对图片进行高斯去噪
-    :param raw_image: 原始图片
+
+    :param original_image: 原始图片
     :return: 返回高斯去噪后的结果
     """
-    gauss_image = cv.GaussianBlur(raw_image, (3, 3), 0)
-    return gauss_image
+    gauss_image = cv.GaussianBlur(original_image, (3, 3), 0)  # 调用cv2进行高斯去噪处理
+    return gauss_image  # 返回高斯去噪结果
 
 
-def grayscale_process(raw_image):
-    """
+def grayscale_process(original_image):
+    """灰度处理
     本函数用于对原始图像进行灰度处理
-    :param raw_image:
-    :return:
+
+    :param original_image: 原始图片，建议采用高斯去噪后的图片。
+    :return grayscale_outcome_image: 返回处理后的灰度图
     """
-    grayscale_outcome_image = cv.cvtColor(raw_image, cv.COLOR_BGR2GRAY)
-    return grayscale_outcome_image
+    grayscale_outcome_image = cv.cvtColor(original_image, cv.COLOR_BGR2GRAY)  # 进行灰度处理
+    return grayscale_outcome_image  # 返回处理后的灰度图
 
 
-def edge_detect(raw_image):
-    """
+def edge_detect(original_image):
+    """边缘检测
     对原图像进行边缘检测，返回检测结果。
-    :param raw_image: 等待进行边缘检测的原图。
+
+    :param original_image: 等待进行边缘检测的原图。
     :return: 返回一个图像，该图像为对原图进行边缘检测的结果。
     """
-    sobel_x = cv.Sobel(raw_image, cv.CV_16S, 1, 0, ksize=3)
-    abs_x = cv.convertScaleAbs(sobel_x)
-    return abs_x
+    sobel_x = cv.Sobel(original_image, cv.CV_16S, 1, 0, ksize=3)  # 进行x方向边缘检测，卷积核尺寸为3
+    abs_x = cv.convertScaleAbs(sobel_x)  # 将边缘检测结果转换为 unit8 类型
+    return abs_x  # 返回检测结果
 
 
-def adaptive_threshold(raw_image):
-    """
+def adaptive_threshold(original_image):
+    """自适应阈值处理
     自适应阈值处理。
-    :param raw_image:
-    :return:
+
+    :param original_image: 接受阈值处理的图片
+    :return: 返回阈值处理结果
     """
-    ret, adaptive_image = cv.threshold(raw_image, 0, 255, cv.THRESH_OTSU)
+    ret, adaptive_image = cv.threshold(original_image, 0, 255, cv.THRESH_OTSU)
     return ret, adaptive_image
 
 
-def closed_operation(raw_image):
-    """
+def closed_operation(original_image):
+    """闭运算
     对原图片进行闭运算，并且去除闭运算后图像中存在的白点
-    :param raw_image: 原图
+
+    :param original_image: 原图
     :return: 返回闭运算后的图片
     """
 
     # 进行闭运算
     kernel = cv.getStructuringElement(cv.MORPH_RECT, (14, 5))  # 创建卷积核
-    closed_operated_image = cv.morphologyEx(raw_image, cv.MORPH_CLOSE, kernel, iterations=1)  # 进行闭运算
+    closed_operated_image = cv.morphologyEx(original_image, cv.MORPH_CLOSE, kernel, iterations=1)  # 进行闭运算
 
     # 去除白点
     # 创建卷积核
@@ -96,23 +103,25 @@ def closed_operation(raw_image):
     return image  # 返回处理后的图片
 
 
-def median_filter(raw_image):
-    """
+def median_filter(original_image):
+    """中值滤波
     对原图进行中值滤波
-    :param raw_image: 原图
+
+    :param original_image: 原图
     :return: 滤波结果
     """
-    median_image = cv.medianBlur(raw_image, 15)
+    median_image = cv.medianBlur(original_image, 15)
     return median_image
 
 
 def detect_contours(img_for_contours, origin_image):
-    """
-    轮廓检测
+    """轮廓检测
     该函数会通过img_for_contours检测出所有轮廓，然后在origin_image中标出轮廓
+
     :param img_for_contours: 应传入中值滤波后的图片
     :param origin_image: 原图片，这个图片用于被标记轮廓，建议使用被处理的图片。
-    :return:
+    :return contours: 包含所有轮廓信息的列表。
+    :return image_copy: 被标记轮廓的图片（用于检查轮廓检测结果）
     """
     # 轮廓检测
     contours, hierarchy = cv.findContours(img_for_contours, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -123,9 +132,9 @@ def detect_contours(img_for_contours, origin_image):
 
 
 def detect_contours_copy(img_for_contours, origin_image):
-    """
-    轮廓检测
+    """函数已废弃：轮廓检测
     该函数会通过img_for_contours检测出所有轮廓，然后在origin_image中标出轮廓
+
     :param img_for_contours: 应传入中值滤波后的图片
     :param origin_image: 原图片，这个图片用于被标记轮廓，建议使用被处理的图片。
     :return:
@@ -140,15 +149,12 @@ def detect_contours_copy(img_for_contours, origin_image):
 
 def find_plate_contour(contours: list, original_image):
     """ 找到车牌轮廓
-
     这个函数用于从轮廓检测中找到车牌所在位置的轮廓。
 
     :param contours: 一个列表，包含了所有轮廓信息
     :param original_image: 原始图片，用于获取图片副本并在其上面绘制车牌区域轮廓
-
     :return contour: 一个列表，包含了车牌区域的轮廓信息
     :return image_copy: 一个cv2图片，在上面绘制了车牌区域轮廓
-
     """
     image_copy = None  # 准备保存返回值。
     contour = None  # 准备保存返回值
@@ -179,10 +185,8 @@ def fit_straight_line(contour, original_image):
 
     :param contour: 包含所有轮廓信息的列表
     :param original_image: 原图，用于获取复制以在原图复制品上面标记拟合直线
-
     :return: 包含拟合直线信息的列表 [vx,vy,x,y]
     :return: 被绘制拟合直线的图片 image_copy
-
     """
     image_copy = original_image.copy()
     height, width = image_copy.shape  # 获取宽高
@@ -208,9 +212,7 @@ def rotate_image(fit_line_info, original_image):
 
     :param fit_line_info: 拟合直线的信息，该参数可以通过 fit_straight_line() 获取
     :param original_image: 原始图片，用于获取副本以进行旋转和返回
-
     :return image_copy: 原始图片的副本，是一个经过旋转后实现的车牌水平的图片，该图片的长宽均为原图的1.1倍
-
     """
     [vx, vy, x, y] = fit_line_info  # 从参数中解包拟合直线信息
     k = vy[0] / vx[0]  # 拟合直线的斜率k
