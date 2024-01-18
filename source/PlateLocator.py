@@ -29,7 +29,9 @@ class PlateLocator:
     closed_operated_image = None  # 闭运算结果图片备份
     median_image = None  # 中值滤波结果图片备份
     contours = None  # 轮廓检测结果集数据备份
+    image_with_contours = None # 绘制所有轮廓后的图片备份
     contour = None  # 车牌区域结果数据备份
+    image_with_contour = None # 标记了车牌区域的图片备份
     line_info = None  # 拟合直线数据备份，该变量保存一个列表：[vx, vy, x, y]
     image_with_line = None  # 绘制拟合直线后的图片备份
     rotated_image = None  # 旋转图片备份
@@ -59,16 +61,16 @@ class PlateLocator:
         :param original_image: 原始图片，建议为 cv2.imread() 读取的 bgr 格式图片
         :return plate_image: 车牌区域图片，用于预览车牌区域，该返回值同时也会被保存到指定目录中。
         """
-        gauss_image = self.gauss_denoise()  # 1. 高斯去噪
-        gray_image = self.grayscale_process()  # 2. 灰度处理
-        abs_x = self.edge_detect()  # 3. 边缘检测
-        ret, adaptive_image = self.adaptive_threshold()  # 4. 自适应阈值处理
-        closed_operated_image = self.closed_operation()  # 5. 闭运算
-        median_image = self.median_filter()  # 6. 中值滤波
-        contours = self.detect_contours(median_image)  # 7. 轮廓检测
-        contour = self.find_plate_contour(contours)  # 8. 找到车牌轮廓
-        line_info, image_with_line = self.fit_straight_line(contour)  # 9, 拟合直线
-        rotated_image = self.rotate_image(line_info)  # 10. 旋转图片
+        self.gauss_denoise()
+        self.grayscale_process()
+        self.edge_detect()
+        self.adaptive_threshold()
+        self.closed_operation()
+        self.median_filter()
+        self.detect_contours(self.median_image)
+        self.find_plate_contour(self.contours)
+        self.fit_straight_line(self.contour)
+        self.rotate_image(self.line_info)
 
     def pre_process(self):
         pass
@@ -158,7 +160,7 @@ class PlateLocator:
         image = cv.erode(image, kernel_y)
         image = cv.dilate(image, kernel_y)
 
-        return image  # 返回处理后的图片
+        self.closed_operated_image = image  # 返回处理后的图片
 
     def median_filter(self, original_image=None):
         """中值滤波
@@ -173,15 +175,15 @@ class PlateLocator:
             print('出错：中值滤波 没有有效图片源')
             return
 
-        return cv.medianBlur(self.original_image, 15)
+        self.median_image = cv.medianBlur(self.original_image, 15)
         # return median_image
 
     def detect_contours(self, img_for_contours, original_image=None):
         """轮廓检测
         该函数会通过img_for_contours检测出所有轮廓，然后在origin_image中标出轮廓
 
+        :param original_image: 原图片，这个图片用于被标记轮廓，建议使用被处理的图片。
         :param img_for_contours: 应传入中值滤波后的图片
-        :param origin_image: 原图片，这个图片用于被标记轮廓，建议使用被处理的图片。
         :return contours: 包含所有轮廓信息的列表。
         :return image_copy: 被标记轮廓的图片（用于检查轮廓检测结果）
         """
@@ -196,7 +198,10 @@ class PlateLocator:
         # 绘制轮廓
         image_copy = original_image.copy()  # 源图片的副本（这里不用self.original_image，是因为该函数后续也会处理被旋转后的图片）
         cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
-        return contours, image_copy  # 返回被标记轮廓的图片复制品
+
+        self.contours = contours
+        self.image_with_contours = image_copy  # 保存备份
+        # return contours, image_copy  # 返回被标记轮廓的图片复制品
 
     def detect_contours_copy(self, img_for_contours):
         """函数已废弃：轮廓检测
@@ -245,7 +250,9 @@ class PlateLocator:
                 image_copy = original_image.copy()  # 获取原图副本
                 cv.drawContours(image_copy, contours, 1, (0, 255, 0), 2)  # 在原图绘制车牌所在的边界
 
-        return contour, image_copy  # 返回被绘制轮廓的图片
+        self.contour = contour
+        self.image_with_contour = image_copy
+        # return contour, image_copy  # 返回被绘制轮廓的图片
 
     def fit_straight_line(self, contour, original_image=None):
         """ 拟合直线
@@ -281,7 +288,9 @@ class PlateLocator:
         # 画出拟合直线
         image_copy = cv.line(image_copy, (0, int(b)), (width, int(k * width + b)), (0, 255, 0), 2)
         # 返回结果
-        return [vx, vy, x, y], image_copy
+        self.line_info = [vx, vy, x, y]
+        self.image_with_line = image_copy
+        # return [vx, vy, x, y], image_copy
 
     def rotate_image(self, fit_line_info, original_image=None):
         """ 旋转图片。
@@ -307,4 +316,6 @@ class PlateLocator:
         height, width = self.original_image.shape[:2]  # 获取宽高
         rotation_matrix = cv.getRotationMatrix2D((width / 2, height / 2), a, 0.8)  # 获取仿射矩阵
         image_copy = cv.warpAffine(image_copy, rotation_matrix, (int(width * 1.1), int(height * 1.1)))  # 进行仿射变换
-        return image_copy  # 返回旋转后的图片
+
+        self.rotated_image = image_copy
+        # return image_copy  # 返回旋转后的图片
