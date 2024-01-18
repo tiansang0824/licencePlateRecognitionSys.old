@@ -7,6 +7,7 @@ after processing, it will return an image witch contains the area of the plate.
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 from source.ToolKit import *
 
@@ -197,3 +198,27 @@ def fit_straight_line(contour, original_image):
     image_copy = cv.line(image_copy, (0, int(b)), (width, int(k * width + b)), (0, 255, 0), 2)
     # 返回结果
     return [vx, vy, x, y], image_copy
+
+
+def rotate_image(fit_line_info, original_image):
+    """ 旋转图片。
+
+    这个函数通过从 fit_line_info 中计算图片（中的车牌区域）的倾斜角度，
+    将原始图片（的副本）进行旋转，以保证得到一个具有水平车牌区域的原始图片的副本图片。
+
+    :param fit_line_info: 拟合直线的信息，该参数可以通过 fit_straight_line() 获取
+    :param original_image: 原始图片，用于获取副本以进行旋转和返回
+
+    :return image_copy: 原始图片的副本，是一个经过旋转后实现的车牌水平的图片，该图片的长宽均为原图的1.1倍
+
+    """
+    [vx, vy, x, y] = fit_line_info  # 从参数中解包拟合直线信息
+    k = vy[0] / vx[0]  # 拟合直线的斜率k
+    b = y[0] - k * x[0]  # 拟合直线的截距b
+    a = math.atan(k)  # 获取倾斜角度（弧度制）
+    a = math.degrees(a)  # 获取倾斜角度（角度制）
+    image_copy = original_image.copy()  # 获取原图像副本
+    height, width = original_image.shape[:2]  # 获取宽高
+    rotation_matrix = cv.getRotationMatrix2D((width / 2, height / 2), a, 0.8)  # 获取仿射矩阵
+    image_copy = cv.warpAffine(image_copy, rotation_matrix, (int(width * 1.1), int(height * 1.1)))  # 进行仿射变换
+    return image_copy  # 返回旋转后的图片
