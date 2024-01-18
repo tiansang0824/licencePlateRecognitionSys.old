@@ -21,6 +21,19 @@ class PlateLocator:
     """
     original_image = None  # 用于保存原始图片
 
+    gauss_image = None  # 高斯处理后的图片备份
+    gray_image = None  # 灰度处理后的图片备份
+    abs_x = None  # Sobel边缘检测结果的图片备份
+    ret = None  # 自适应阈值处理结果备份
+    adaptive_image = None  # 自适应阈值处理结果图片备份
+    closed_operated_image = None  # 闭运算结果图片备份
+    median_image = None  # 中值滤波结果图片备份
+    contours = None  # 轮廓检测结果集数据备份
+    contour = None  # 车牌区域结果数据备份
+    line_info = None  # 拟合直线数据备份，该变量保存一个列表：[vx, vy, x, y]
+    image_with_line = None  # 绘制拟合直线后的图片备份
+    rotated_image = None  # 旋转图片备份
+
     def __init__(self, original_image):
         """
         构造函数，定义实例的同时传入原始图片。
@@ -39,13 +52,25 @@ class PlateLocator:
         """
         self.original_image = original_image
 
-    def locate_plate(self, original_image):
+    def locate_plate(self):
         """
         该函数用于调用类内函数并且一条龙式实现车牌定位。
 
         :param original_image: 原始图片，建议为 cv2.imread() 读取的 bgr 格式图片
         :return plate_image: 车牌区域图片，用于预览车牌区域，该返回值同时也会被保存到指定目录中。
         """
+        gauss_image = self.gauss_denoise()  # 1. 高斯去噪
+        gray_image = self.grayscale_process()  # 2. 灰度处理
+        abs_x = self.edge_detect()  # 3. 边缘检测
+        ret, adaptive_image = self.adaptive_threshold()  # 4. 自适应阈值处理
+        closed_operated_image = self.closed_operation()  # 5. 闭运算
+        median_image = self.median_filter()  # 6. 中值滤波
+        contours = self.detect_contours(median_image)  # 7. 轮廓检测
+        contour = self.find_plate_contour(contours)  # 8. 找到车牌轮廓
+        line_info, image_with_line = self.fit_straight_line(contour)  # 9, 拟合直线
+        rotated_image = self.rotate_image(line_info)  # 10. 旋转图片
+
+    def pre_process(self):
         pass
 
     def gauss_denoise(self):
@@ -54,43 +79,69 @@ class PlateLocator:
 
         :return: 返回高斯去噪后的结果
         """
-        return cv.GaussianBlur(self.original_image, (3, 3), 0)  # 调用cv2进行高斯去噪处理
+        self.gauss_image = cv.GaussianBlur(self.original_image, (3, 3), 0)  # 调用cv2进行高斯去噪处理
 
-    def grayscale_process(self):
+    def grayscale_process(self, original_image=None):
         """灰度处理
         本函数用于对原始图像进行灰度处理
 
-        :return grayscale_outcome_image: 返回处理后的灰度图
+        :param original_image: 接受灰度处理的图片，如果不传入图片，默认用类内的高斯处理结果
+        :return 如果没有有效图源，打印出错信息，并且结束函数
+        :return 操作成功后，将结果赋值给self.gray_image
         """
-        return cv.cvtColor(self.original_image, cv.COLOR_BGR2GRAY)  # 进行灰度处理
+        if original_image is None:  # 如果参数缺省，则调用高斯去噪的处理结果。
+            original_image = self.gauss_image
+        if original_image is None:
+            print('出错：灰度处理没有有效图片源')
+            return
+        self.gray_image = cv.cvtColor(self.original_image, cv.COLOR_BGR2GRAY)  # 进行灰度处理
 
-    def edge_detect(self):
+    def edge_detect(self, original_image=None):
         """ 边缘检测
         对原图像进行边缘检测，返回检测结果。
 
+        :param original_image: 被检测图片
         :return: 返回一个图像，该图像为对原图进行边缘检测的结果。
         """
+        if original_image is None:  # 如果参数缺省，则用灰度处理结果。
+            original_image = self.gray_image
+        if original_image is None:
+            print('出错：边缘检测 没有有效图片源')
+            return
         sobel_x = cv.Sobel(self.original_image, cv.CV_16S, 1, 0, ksize=3)  # 进行x方向边缘检测，卷积核尺寸为3
-        return cv.convertScaleAbs(sobel_x)  # 将边缘检测结果转换为 unit8 类型
+        self.abs_x = cv.convertScaleAbs(sobel_x)  # 将边缘检测结果转换为 unit8 类型
         # return abs_x  # 返回检测结果
 
-    def adaptive_threshold(self):
+    def adaptive_threshold(self, original_image=None):
         """ 自适应阈值处理
         自适应阈值处理。
 
         :return ret: 返回阈值处理结果
         :return adaptive_image: 阈值处理结果图
         """
-        ret, adaptive_image = cv.threshold(self.original_image, 0, 255, cv.THRESH_OTSU)
-        return ret, adaptive_image
+        if original_image is None:  # 如果参数缺省，就用边缘检测的结果 abs_x。
+            original_image = self.abs_x
+        if original_image is None:
+            print('出错：自适应阈值处理 没有有效图片源')
+            return
 
-    def closed_operation(self):
+        ret, adaptive_image = cv.threshold(self.original_image, 0, 255, cv.THRESH_OTSU)
+        self.ret = ret
+        self.gray_image = adaptive_image
+        # return ret, adaptive_image
+
+    def closed_operation(self, original_image=None):
         """闭运算
         对原图片进行闭运算，并且去除闭运算后图像中存在的白点
 
         :param original_image: 原图
         :return: 返回闭运算后的图片
         """
+        if original_image is None:  # 如果参数缺省，就用 自适应阈值处理 的结果 self.adaptive_image。
+            original_image = self.adaptive_image
+        if original_image is None:
+            print('出错：闭运算 没有有效图片源')
+            return
 
         # 进行闭运算
         kernel = cv.getStructuringElement(cv.MORPH_RECT, (14, 5))  # 创建卷积核
@@ -109,17 +160,23 @@ class PlateLocator:
 
         return image  # 返回处理后的图片
 
-    def median_filter(self):
+    def median_filter(self, original_image=None):
         """中值滤波
         对原图进行中值滤波
 
         :param original_image: 原图
         :return: 滤波结果
         """
+        if original_image is None:  # 如果参数缺省，闭运算 的结果 self.closed_operated_image。
+            original_image = self.closed_operated_image
+        if original_image is None:
+            print('出错：中值滤波 没有有效图片源')
+            return
+
         return cv.medianBlur(self.original_image, 15)
         # return median_image
 
-    def detect_contours(self, img_for_contours):
+    def detect_contours(self, img_for_contours, original_image=None):
         """轮廓检测
         该函数会通过img_for_contours检测出所有轮廓，然后在origin_image中标出轮廓
 
@@ -128,10 +185,16 @@ class PlateLocator:
         :return contours: 包含所有轮廓信息的列表。
         :return image_copy: 被标记轮廓的图片（用于检查轮廓检测结果）
         """
+        if original_image is None:  # 如果参数缺省，中值滤波 的结果 self.median_image。
+            original_image = self.median_image
+        if original_image is None:
+            print('出错：轮廓检测 没有有效图片源')
+            return
+
         # 轮廓检测
         contours, hierarchy = cv.findContours(img_for_contours, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         # 绘制轮廓
-        image_copy = self.original_image.copy()
+        image_copy = original_image.copy()  # 源图片的副本（这里不用self.original_image，是因为该函数后续也会处理被旋转后的图片）
         cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
         return contours, image_copy  # 返回被标记轮廓的图片复制品
 
@@ -151,7 +214,7 @@ class PlateLocator:
         cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
         return contours  # 返回被标记轮廓的图片复制品
 
-    def find_plate_contour(self, contours: list):
+    def find_plate_contour(self, contours, original_image=None):
         """ 找到车牌轮廓
         这个函数用于从轮廓检测中找到车牌所在位置的轮廓。
 
@@ -159,6 +222,12 @@ class PlateLocator:
         :return contour: 一个列表，包含了车牌区域的轮廓信息
         :return image_copy: 一个cv2图片，在上面绘制了车牌区域轮廓
         """
+        if original_image is None:  # 如果参数缺省，原图 的结果 self.original_image。
+            original_image = self.original_image
+        if original_image is None:
+            print('出错：车牌区域轮廓识别 没有有效图片源')
+            return
+
         image_copy = None  # 准备保存返回值。
         contour = None  # 准备保存返回值
 
@@ -173,12 +242,12 @@ class PlateLocator:
                 # 符合条件的 contour, 保存进contour准备返回
                 contour = np.array(item)  # contours中的每个轮廓都是用numpy.array的数据类型保存的
                 # print(index)
-                image_copy = self.original_image.copy()  # 获取原图副本
+                image_copy = original_image.copy()  # 获取原图副本
                 cv.drawContours(image_copy, contours, 1, (0, 255, 0), 2)  # 在原图绘制车牌所在的边界
 
         return contour, image_copy  # 返回被绘制轮廓的图片
 
-    def fit_straight_line(self, contour):
+    def fit_straight_line(self, contour, original_image=None):
         """ 拟合直线
 
         该函数将从image_with_contours中的车牌轮廓处获取轮廓点集，然后通过点集拟合直线。
@@ -190,7 +259,16 @@ class PlateLocator:
         :return: 包含拟合直线信息的列表 [vx,vy,x,y]
         :return: 被绘制拟合直线的图片 image_copy
         """
-        image_copy = self.original_image.copy()
+        if original_image is None:  # 如果参数缺省，原图 的结果 self.original_image。
+            original_image = self.original_image
+        if original_image is None:
+            """
+            出现下面的报错是因为没有合适的图片用于绘制拟合直线
+            """
+            print('出错：拟合直线 没有有效图 绘制 片源')
+            return
+
+        image_copy = original_image.copy()
         height, width = image_copy.shape  # 获取宽高
         [vx, vy, x, y] = cv.fitLine(contour, cv.DIST_L2, 0, 0.01, 0.01)  # 拟合直线并获取直线信息
         print(f'拟合直线的结果是: {[vx, vy, x, y]}')
@@ -205,16 +283,21 @@ class PlateLocator:
         # 返回结果
         return [vx, vy, x, y], image_copy
 
-    def rotate_image(self, fit_line_info):
+    def rotate_image(self, fit_line_info, original_image=None):
         """ 旋转图片。
 
         这个函数通过从 fit_line_info 中计算图片（中的车牌区域）的倾斜角度，
         将原始图片（的副本）进行旋转，以保证得到一个具有水平车牌区域的原始图片的副本图片。
 
         :param fit_line_info: 拟合直线的信息，该参数可以通过 fit_straight_line() 获取
-        :param original_image: 原始图片，用于获取副本以进行旋转和返回
         :return image_copy: 原始图片的副本，是一个经过旋转后实现的车牌水平的图片，该图片的长宽均为原图的1.1倍
         """
+        if original_image is None:  # 如果参数缺省，原图 的结果 self.original_image。
+            original_image = self.original_image
+        if original_image is None:
+            print('出错：旋转图片 没有有效图片源')
+            return
+
         [vx, vy, x, y] = fit_line_info  # 从参数中解包拟合直线信息
         k = vy[0] / vx[0]  # 拟合直线的斜率k
         b = y[0] - k * x[0]  # 拟合直线的截距b
