@@ -137,25 +137,63 @@ def detect_contours_copy(img_for_contours, origin_image):
     return contours  # 返回被标记轮廓的图片复制品
 
 
-def find_plate_contour(contours, original_image):
-    """
-    该图片用于筛选车牌位置的轮廓，并且将其绘制到原图中，最后返回被绘制车牌轮廓的部分
-    :param contours: 包含轮廓信息的列表
-    :param original_image: 被绘制轮廓的列表
-    :return: 返回被绘制轮廓后的图片
+def find_plate_contour(contours: list, original_image):
+    """ 找到车牌轮廓
+
+    这个函数用于从轮廓检测中找到车牌所在位置的轮廓。
+
+    :param contours: 一个列表，包含了所有轮廓信息
+    :param original_image: 原始图片，用于获取图片副本并在其上面绘制车牌区域轮廓
+
+    :return contour: 一个列表，包含了车牌区域的轮廓信息
+    :return image_copy: 一个cv2图片，在上面绘制了车牌区域轮廓
+
     """
     image_copy = None  # 准备保存返回值。
+    contour = None  # 准备保存返回值
+
     # 筛选车牌位置轮廓
     for index, item in enumerate(contours):
-        rect = cv.boundingRect(item)
+        rect = cv.boundingRect(item)  #
         x = rect[0]
         y = rect[1]
         width = rect[2]
         height = rect[3]
         if (width > height * 2.5) and (width < height * 4):
+            # 符合条件的 contour, 保存进contour准备返回
+            contour = np.array(item)  # contours中的每个轮廓都是用numpy.array的数据类型保存的
             # print(index)
-            image_copy = original_image.copy()
-            cv.drawContours(image_copy, contours, 1, (0, 255, 0), 2)
-    return image_copy  # 返回被绘制轮廓的图片
+            image_copy = original_image.copy()  # 获取原图副本
+            cv.drawContours(image_copy, contours, 1, (0, 255, 0), 2)  # 在原图绘制车牌所在的边界
 
-# TODO: 拟合直线找斜率函数。
+    return contour, image_copy  # 返回被绘制轮廓的图片
+
+
+def fit_straight_line(contour, original_image):
+    """ 拟合直线
+
+    该函数将从image_with_contours中的车牌轮廓处获取轮廓点集，然后通过点集拟合直线。
+    并且将直线的信息（vx,vy,x,y）以及被标记拟合直线的原图作为结果返回
+    含有拟合直线信息的列表用于后续旋转图片，被绘制直线的图片用于阶段性测试
+
+    :param contour: 包含所有轮廓信息的列表
+    :param original_image: 原图，用于获取复制以在原图复制品上面标记拟合直线
+
+    :return: 包含拟合直线信息的列表 [vx,vy,x,y]
+    :return: 被绘制拟合直线的图片 image_copy
+
+    """
+    image_copy = original_image.copy()
+    height, width = image_copy.shape  # 获取宽高
+    [vx, vy, x, y] = cv.fitLine(contour, cv.DIST_L2, 0, 0.01, 0.01)  # 拟合直线并获取直线信息
+    print(f'拟合直线的结果是: {[vx, vy, x, y]}')
+
+    k = vy[0] / vx[0]  # 拟合直线的斜率k
+    b = y[0] - k * x[0]  # 拟合直线的b
+
+    print(f'拟合直线的斜率和截距是：k = {k}, b = {b}')  # 拟合直线的表达式
+
+    # 画出拟合直线
+    image_copy = cv.line(image_copy, (0, int(b)), (width, int(k * width + b)), (0, 255, 0), 2)
+    # 返回结果
+    return [vx, vy, x, y], image_copy
