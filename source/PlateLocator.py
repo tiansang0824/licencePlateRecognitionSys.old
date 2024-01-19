@@ -1,8 +1,15 @@
 """
 this model is used to locate the plates in the raw image.
 after processing, it will return an image witch contains the area of the plate.
-===== ===== ===== =====
 这个模块用于在原始图像中定位车牌，在车牌定位处理后，将会返回一个只含有车牌区域的图片。
+===== ===== ===== =====
+the usage of this class is recommended as follows:
+该类的建议使用方式如下：
+1. 创建实例
+
+2. 调用快速函数
+
+3. 依次调用内部单一函数
 
 
 """
