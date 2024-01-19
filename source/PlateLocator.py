@@ -80,7 +80,7 @@ class PlateLocator:
         """
         # 高斯去噪
         self.gauss_denoise()
-        print('高斯去噪处理完毕')
+        # print('高斯去噪处理完毕')
         # 灰度处理
         self.grayscale_process()
         # 边缘检测
