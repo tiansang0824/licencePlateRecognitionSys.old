@@ -68,19 +68,37 @@ class PlateLocator:
         :param original_image: 原始图片，建议为 cv2.imread() 读取的 bgr 格式图片
         :return plate_image: 车牌区域图片，用于预览车牌区域，该返回值同时也会被保存到指定目录中。
         """
-        self.gauss_denoise()
-        self.grayscale_process()
-        self.edge_detect()
-        self.adaptive_threshold()
-        self.closed_operation()
-        self.median_filter()
-        self.detect_contours(self.median_image)
-        self.find_plate_contour(self.contours)
-        self.fit_straight_line(self.contour)
-        self.rotate_image(self.line_info)
+        pass
 
     def pre_process(self):
-        pass
+        """
+        预处理函数，该函数将集成所有处理倾斜车牌使用的函数。
+        预处理函数需要在处理图片的第一步使用，目的是将倾斜的车牌旋转为可处理的水平的车牌。
+        预处理函数结束后，会将旋转结果的图片赋值给self.rotated_image。
+
+        :return: 将旋转结束的车牌赋值给self.rotated_image。
+        """
+        # 高斯去噪
+        self.gauss_denoise()
+        print('高斯去噪处理完毕')
+        # 灰度处理
+        self.grayscale_process()
+        # 边缘检测
+        self.edge_detect()
+        # 阈值处理
+        self.adaptive_threshold()
+        # 闭运算、去除白点
+        self.closed_operation()
+        # 中值滤波
+        self.median_filter()
+        # 轮廓检测
+        self.detect_contours(self.median_image)
+        # 筛选车牌位置
+        self.find_plate_contour(self.contours)
+        # 拟合直线
+        self.fit_straight_line(self.contour)
+        # 旋转图片
+        self.rotate_image(self.line_info)
 
     def gauss_denoise(self, original_image=None):
         """ 高斯去噪处理
