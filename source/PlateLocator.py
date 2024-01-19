@@ -292,7 +292,7 @@ class PlateLocator:
         contours, hierarchy = cv.findContours(img_for_contours, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         # 绘制轮廓
         image_copy = original_image.copy()  # 源图片的副本（这里不用self.original_image，是因为该函数后续也会处理被旋转后的图片）
-        cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
+        cv.drawContours(image_copy, contours, -1, (0, 255, 0), 4)
 
         self.contours = contours
         self.image_with_contours = image_copy  # 保存备份
@@ -311,7 +311,7 @@ class PlateLocator:
         contours, hierarchy = cv.findContours(img_for_contours, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         # 绘制轮廓
         image_copy = self.original_image.copy()
-        cv.drawContours(image_copy, contours, -1, (0, 255, 0), 2)
+        cv.drawContours(image_copy, contours, -1, (0, 255, 0), 5)
         return contours  # 返回被标记轮廓的图片复制品
 
     def find_plate_contour(self, contours, original_image=None):
@@ -339,9 +339,9 @@ class PlateLocator:
             y = rect[1]
             width = rect[2]
             height = rect[3]
-            print('out of if...')
-            if (width > height * 2.5) and (width < height * 4):
-                print('if....')
+            print('finding...')
+            if (width > height * 2.5) and (width < height * 5):
+                print('find one....')
                 # 符合条件的 contour, 保存进contour准备返回
                 contour = np.array(item)  # contours中的每个轮廓都是用numpy.array的数据类型保存的
                 # print(index)

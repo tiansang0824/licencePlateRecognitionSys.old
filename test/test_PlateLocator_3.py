@@ -39,9 +39,10 @@ toolKit.show_color('image after rotated', pl.rotated_image)
 pl.rotate_by_line()
 toolKit.show_color('image after rotated by straight line', pl.rotated_image)
 
+print(f'第一轮结束后的contour {pl.contour}')
 
 # 下面是对新图片预处理的过程
-'''
+
 pl.gauss_denoise(pl.rotated_image)
 pl.grayscale_process()
 pl.edge_detect()
@@ -53,8 +54,13 @@ pl.median_filter()
 toolKit.show_gray('new image after median threshold', pl.median_image)
 pl.detect_contours(pl.median_image, pl.rotated_image)
 toolKit.show_color('new image with all main contours', pl.image_with_contours)
+# 第二轮处理一直到找到所有轮廓位置都没有问题。
 pl.find_plate_contour(pl.contours, pl.rotated_image)
+print(f'第2轮结束后的contour {pl.contour}')
 toolKit.show_color('new image with contour on plate', pl.image_with_contour)
+
+
 '''
 pl.pre_process(pl.rotated_image)
 toolKit.show_color('new image after second pre process', pl.image_with_contour)
+'''
