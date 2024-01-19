@@ -42,6 +42,7 @@ class PlateLocator:
     line_info = None  # 拟合直线数据备份，该变量保存一个列表：[vx, vy, x, y]
     image_with_line = None  # 绘制拟合直线后的图片备份
     rotated_image = None  # 旋转图片备份
+    plate_image = None  # 车牌区域图片备份
 
     def __init__(self, original_image):
         """
@@ -70,35 +71,76 @@ class PlateLocator:
         """
         pass
 
-    def pre_process(self):
+    def get_plate_image(self):
+        """
+        获取车牌区域图片。
+        - 调用该函数建议首先调用预处理函数 pre_process() 以及车牌旋转的函数 rotate_by_line()
+
+        :return: 返回车牌区域图片，并且将其保存到指定目录
+        """
+        self.pre_process(self.rotated_image)  # 对旋转后的图片进行预处理
+        # 现在实例中保存的图片都是对旋转后的图片的预处理的结果
+        # 接下来就可以进行车牌识别
+        rect = cv.boundingRect(self.contour)  # 用最小矩形把车牌区域围起来
+        x = rect[0]
+        y = rect[1]  # 矩形左上角坐标
+        width = rect[2]
+        height = rect[3]  # 矩形宽高
+        self.plate_image = self.rotated_image[y:y + height, x:x + width]
+        cv.imwrite('../attachments/plate_image.png', self.plate_image)
+
+
+    def rotate_by_line(self, original_image):
+        """
+        通过（拟合）直线旋转图片。
+        本函数会通过车牌位置的轮廓，拟合一条直线，并通过该拟合直线信息旋转图片。
+        该函数建议在预处理后调用。
+
+        :return: None。被旋转的图片会被保存到指定位置
+        """
+        # 先进行一次判断
+        if original_image is None:
+            original_image = self.image_with_contour
+        if original_image is None:
+            print('拟合直线旋转图片 失败，没有源图片')
+            return
+
+        # 拟合直线
+        self.fit_straight_line(self.contour, original_image)
+        # 旋转图片
+        self.rotate_image(self.line_info, original_image)
+
+    def pre_process(self, original_image=None):
         """
         预处理函数，该函数将集成所有处理倾斜车牌使用的函数。
         预处理函数需要在处理图片的第一步使用，目的是将倾斜的车牌旋转为可处理的水平的车牌。
-        预处理函数结束后，会将旋转结果的图片赋值给self.rotated_image。
+        预处理函数结束后，会在图片中标记出车牌轮廓
 
         :return: 将旋转结束的车牌赋值给self.rotated_image。
         """
+        if original_image is None:
+            original_image = self.original_image
+        if original_image is None:
+            print('出错：预处理 没有有效图片源')
+            return
+
         # 高斯去噪
-        self.gauss_denoise()
+        self.gauss_denoise(original_image)
         # print('高斯去噪处理完毕')
         # 灰度处理
-        self.grayscale_process()
+        self.grayscale_process(original_image)
         # 边缘检测
-        self.edge_detect()
+        self.edge_detect(original_image)
         # 阈值处理
-        self.adaptive_threshold()
+        self.adaptive_threshold(original_image)
         # 闭运算、去除白点
-        self.closed_operation()
+        self.closed_operation(original_image)
         # 中值滤波
-        self.median_filter()
+        self.median_filter(original_image)
         # 轮廓检测
-        self.detect_contours(self.median_image)
+        self.detect_contours(self.median_image, original_image)
         # 筛选车牌位置
-        self.find_plate_contour(self.contours)
-        # 拟合直线
-        self.fit_straight_line(self.contour)
-        # 旋转图片
-        self.rotate_image(self.line_info)
+        self.find_plate_contour(self.contours, original_image)
 
     def gauss_denoise(self, original_image=None):
         """ 高斯去噪处理
