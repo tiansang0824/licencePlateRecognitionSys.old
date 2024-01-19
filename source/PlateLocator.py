@@ -82,13 +82,20 @@ class PlateLocator:
     def pre_process(self):
         pass
 
-    def gauss_denoise(self):
+    def gauss_denoise(self, original_image=None):
         """ 高斯去噪处理
         本函数用于对图片进行高斯去噪
 
         :return: 返回高斯去噪后的结果
         """
-        self.gauss_image = cv.GaussianBlur(self.original_image, (3, 3), 0)  # 调用cv2进行高斯去噪处理
+        if original_image is None:  # 如果参数缺省，则调用高斯去噪的处理结果。
+            original_image = self.original_image
+        if original_image is None:
+            print('出错：灰度处理没有有效图片源')
+            return
+
+        # 高斯去噪：输入原始图像，输出赋值给 self.gauss_image
+        self.gauss_image = cv.GaussianBlur(original_image, (3, 3), 0)  # 调用cv2进行高斯去噪处理
 
     def grayscale_process(self, original_image=None):
         """灰度处理
@@ -103,7 +110,8 @@ class PlateLocator:
         if original_image is None:
             print('出错：灰度处理没有有效图片源')
             return
-        self.gray_image = cv.cvtColor(self.original_image, cv.COLOR_BGR2GRAY)  # 进行灰度处理
+
+        self.gray_image = cv.cvtColor(original_image, cv.COLOR_BGR2GRAY)  # 进行灰度处理
 
     def edge_detect(self, original_image=None):
         """ 边缘检测
@@ -117,7 +125,8 @@ class PlateLocator:
         if original_image is None:
             print('出错：边缘检测 没有有效图片源')
             return
-        sobel_x = cv.Sobel(self.original_image, cv.CV_16S, 1, 0, ksize=3)  # 进行x方向边缘检测，卷积核尺寸为3
+
+        sobel_x = cv.Sobel(original_image, cv.CV_16S, 1, 0, ksize=3)  # 进行x方向边缘检测，卷积核尺寸为3
         self.abs_x = cv.convertScaleAbs(sobel_x)  # 将边缘检测结果转换为 unit8 类型
         # return abs_x  # 返回检测结果
 
@@ -134,7 +143,7 @@ class PlateLocator:
             print('出错：自适应阈值处理 没有有效图片源')
             return
 
-        ret, adaptive_image = cv.threshold(self.original_image, 0, 255, cv.THRESH_OTSU)
+        ret, adaptive_image = cv.threshold(original_image, 0, 255, cv.THRESH_OTSU)
         self.ret = ret
         self.gray_image = adaptive_image
         # return ret, adaptive_image
@@ -154,7 +163,7 @@ class PlateLocator:
 
         # 进行闭运算
         kernel = cv.getStructuringElement(cv.MORPH_RECT, (14, 5))  # 创建卷积核
-        closed_operated_image = cv.morphologyEx(self.original_image, cv.MORPH_CLOSE, kernel, iterations=1)  # 进行闭运算
+        closed_operated_image = cv.morphologyEx(original_image, cv.MORPH_CLOSE, kernel, iterations=1)  # 进行闭运算
 
         # 去除白点
         # 创建卷积核
