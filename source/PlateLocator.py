@@ -36,9 +36,9 @@ class PlateLocator:
     closed_operated_image = None  # 闭运算结果图片备份
     median_image = None  # 中值滤波结果图片备份
     contours = None  # 轮廓检测结果集数据备份
-    image_with_contours = None # 绘制所有轮廓后的图片备份
+    image_with_contours = None  # 绘制所有轮廓后的图片备份
     contour = None  # 车牌区域结果数据备份
-    image_with_contour = None # 标记了车牌区域的图片备份
+    image_with_contour = None  # 标记了车牌区域的图片备份
     line_info = None  # 拟合直线数据备份，该变量保存一个列表：[vx, vy, x, y]
     image_with_line = None  # 绘制拟合直线后的图片备份
     rotated_image = None  # 旋转图片备份
@@ -145,8 +145,28 @@ class PlateLocator:
 
         ret, adaptive_image = cv.threshold(original_image, 0, 255, cv.THRESH_OTSU)
         self.ret = ret
-        self.gray_image = adaptive_image
+        self.adaptive_image = adaptive_image
         # return ret, adaptive_image
+
+    def test_close_operation(self, original_image=None):
+        """
+        闭运算测试函数，这里没有进行白点去除操作
+
+        :param original_image:
+        :return:
+        """
+        warnings.warn('这是用于测试闭运算的函数，除非进行测试，否则不要使用', DeprecationWarning)
+        if original_image is None:  # 如果参数缺省，就用 自适应阈值处理 的结果 self.adaptive_image。
+            original_image = self.adaptive_image
+        if original_image is None:
+            print('出错：闭运算 没有有效图片源')
+            return
+
+        # 进行闭运算
+        kernel = cv.getStructuringElement(cv.MORPH_RECT, (14, 5))  # 创建卷积核
+        closed_operated_image = cv.morphologyEx(original_image, cv.MORPH_CLOSE, kernel, iterations=1)  # 进行闭运算
+
+        return closed_operated_image  # 返回闭运算处理结果
 
     def closed_operation(self, original_image=None):
         """闭运算
@@ -191,7 +211,7 @@ class PlateLocator:
             print('出错：中值滤波 没有有效图片源')
             return
 
-        self.median_image = cv.medianBlur(self.original_image, 15)
+        self.median_image = cv.medianBlur(original_image, 15)
         # return median_image
 
     def detect_contours(self, img_for_contours, original_image=None):
@@ -204,7 +224,7 @@ class PlateLocator:
         :return image_copy: 被标记轮廓的图片（用于检查轮廓检测结果）
         """
         if original_image is None:  # 如果参数缺省，中值滤波 的结果 self.median_image。
-            original_image = self.median_image
+            original_image = self.original_image
         if original_image is None:
             print('出错：轮廓检测 没有有效图片源')
             return
