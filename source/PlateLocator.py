@@ -89,8 +89,7 @@ class PlateLocator:
         self.plate_image = self.rotated_image[y:y + height, x:x + width]
         cv.imwrite('../attachments/plate_image.png', self.plate_image)
 
-
-    def rotate_by_line(self, original_image):
+    def rotate_by_line(self, original_image=None):
         """
         通过（拟合）直线旋转图片。
         本函数会通过车牌位置的轮廓，拟合一条直线，并通过该拟合直线信息旋转图片。
@@ -128,15 +127,15 @@ class PlateLocator:
         self.gauss_denoise(original_image)
         # print('高斯去噪处理完毕')
         # 灰度处理
-        self.grayscale_process(original_image)
+        self.grayscale_process()  # 灰度检测检测的是高斯去噪的结果图
         # 边缘检测
-        self.edge_detect(original_image)
+        self.edge_detect()  # 边缘检测检测的是灰度图
         # 阈值处理
-        self.adaptive_threshold(original_image)
+        self.adaptive_threshold(self.abs_x)  # 阈值处理检测的是abs_x
         # 闭运算、去除白点
-        self.closed_operation(original_image)
+        self.closed_operation()  # 闭运算检测的是阈值处理的结果图
         # 中值滤波
-        self.median_filter(original_image)
+        self.median_filter()  # 中值滤波处理的是闭运算的结果图
         # 轮廓检测
         self.detect_contours(self.median_image, original_image)
         # 筛选车牌位置
@@ -319,6 +318,7 @@ class PlateLocator:
         """ 找到车牌轮廓
         这个函数用于从轮廓检测中找到车牌所在位置的轮廓。
 
+        :param original_image:
         :param contours: 一个列表，包含了所有轮廓信息
         :return contour: 一个列表，包含了车牌区域的轮廓信息
         :return image_copy: 一个cv2图片，在上面绘制了车牌区域轮廓
@@ -339,7 +339,9 @@ class PlateLocator:
             y = rect[1]
             width = rect[2]
             height = rect[3]
+            print('out of if...')
             if (width > height * 2.5) and (width < height * 4):
+                print('if....')
                 # 符合条件的 contour, 保存进contour准备返回
                 contour = np.array(item)  # contours中的每个轮廓都是用numpy.array的数据类型保存的
                 # print(index)
