@@ -312,7 +312,7 @@ class PlateLocator:
             return
 
         image_copy = original_image.copy()
-        height, width = image_copy.shape  # 获取宽高
+        height, width = image_copy.shape[:2]  # 获取宽高
         [vx, vy, x, y] = cv.fitLine(contour, cv.DIST_L2, 0, 0.01, 0.01)  # 拟合直线并获取直线信息
         print(f'拟合直线的结果是: {[vx, vy, x, y]}')
 
