@@ -10,7 +10,7 @@ pl = PlateLocator.PlateLocator(original_image)  # 创建实例
 toolKit.show_color('original image saved in instance', pl.original_image)
 
 # 下面开始手动预处理
-'''
+
 pl.gauss_denoise()
 pl.grayscale_process()
 pl.edge_detect()
@@ -24,9 +24,11 @@ pl.detect_contours(pl.median_image)
 toolKit.show_color('image with all main contours', pl.image_with_contours)
 pl.find_plate_contour(pl.contours)
 toolKit.show_color('image with contour on plate', pl.image_with_contour)
+
 '''
 pl.pre_process()
 toolKit.show_color('image after pre process', pl.image_with_contour)
+'''
 
 # 下面是图片旋转的部分
 '''
